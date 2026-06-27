@@ -4,6 +4,8 @@ A pair of googly eyes that live in VS Code and watch what you're doing —
 blinking on their own and acting surprised when you click them. Inspired by
 [tonybaloney/vscode-pets](https://github.com/tonybaloney/vscode-pets).
 
+![Eyes following the cursor and reacting with surprise](media/demo.gif)
+
 > Note: a webview can't read the OS cursor outside its own area, so the eyes
 > track the **real mouse while it's over the Eyes view**, and otherwise look
 > toward your **text cursor (caret)** in the active editor.

@@ -3,6 +3,7 @@
 .gitignore
 scripts/**
 media/icon.svg
+media/demo.gif
 Eyes Tall.html
 **/*.map
 **/*.vsix
