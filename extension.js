@@ -1,9 +1,10 @@
 const vscode = require('vscode');
+const crypto = require('crypto');
 
 /**
  * Eyes — a tiny VS Code companion (inspired by tonybaloney/vscode-pets).
- * A pair of googly eyes live in a webview view in the panel area; they spring
- * toward the cursor, blink, and act surprised when clicked.
+ * A pair of googly eyes live in a webview view (Activity Bar by default); they
+ * spring toward the cursor, blink, and act surprised when clicked.
  */
 
 class EyesViewProvider {
@@ -11,6 +12,7 @@ class EyesViewProvider {
     this._extensionUri = extensionUri;
     this._view = undefined;
     this._gazeTimer = undefined;
+    this._pendingSurprise = false;
   }
 
   resolveWebviewView(webviewView) {
@@ -23,7 +25,13 @@ class EyesViewProvider {
     webviewView.webview.html = this._html(webviewView.webview);
 
     webviewView.webview.onDidReceiveMessage((msg) => {
-      if (msg && msg.type === 'ready') this.updateGaze();
+      if (msg && msg.type === 'ready') {
+        this.updateGaze();
+        if (this._pendingSurprise) {
+          this._pendingSurprise = false;
+          this._view.webview.postMessage({ type: 'surprise' });
+        }
+      }
     });
     webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible) this.updateGaze();
@@ -41,6 +49,10 @@ class EyesViewProvider {
     if (this._view) {
       this._view.show?.(true);
       this._view.webview.postMessage({ type: 'surprise' });
+    } else {
+      // View not resolved yet (e.g. command run before it was ever opened):
+      // remember it and fire once the webview reports it's ready.
+      this._pendingSurprise = true;
     }
   }
 
@@ -55,19 +67,26 @@ class EyesViewProvider {
    * Tell the eyes where to look based on the active editor's caret.
    * A webview can't read the OS cursor outside its own bounds, so we approximate
    * "looking at what you're doing" from the caret position: vertical from the
-   * caret's place within the visible line range, horizontal from the column.
+   * caret's place within the visible lines, horizontal from how far along the
+   * current line it sits. The view usually docks left of the editor, so the
+   * horizontal range stays editor-ward (rightish) but tracks the column.
    */
   updateGaze() {
     if (!this._view || !this._view.visible) return;
-    let x = 0.6, y = 0; // default: glance toward the editor (to the right)
+    let x = 0.55, y = 0; // default: glance toward the editor
     const ed = vscode.window.activeTextEditor;
     if (ed && ed.visibleRanges.length) {
       const pos = ed.selection.active;
-      const vr = ed.visibleRanges[0];
-      const span = Math.max(1, vr.end.line - vr.start.line);
-      const vfrac = clamp((pos.line - vr.start.line) / span, 0, 1);
-      const xfrac = clamp(pos.character / 80, 0, 1);
-      x = clamp(0.4 + xfrac * 0.55, -1, 1);
+      // Span the full visible region (across folds), not just the first range.
+      const firstLine = ed.visibleRanges[0].start.line;
+      const lastLine = ed.visibleRanges[ed.visibleRanges.length - 1].end.line;
+      const span = Math.max(1, lastLine - firstLine);
+      const vfrac = clamp((pos.line - firstLine) / span, 0, 1);
+      // Column relative to the caret's own line length (floored so short lines
+      // don't saturate instantly).
+      const lineLen = ed.document.lineAt(pos.line).text.length;
+      const xfrac = clamp(pos.character / Math.max(24, lineLen), 0, 1);
+      x = clamp(0.15 + xfrac * 0.75, -1, 1);
       y = clamp((vfrac - 0.5) * 1.8, -1, 1);
     }
     this._view.webview.postMessage({ type: 'look', x: x, y: y });
@@ -111,12 +130,7 @@ function clamp(v, lo, hi) {
 }
 
 function getNonce() {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
+  return crypto.randomBytes(16).toString('hex');
 }
 
 function activate(context) {
@@ -128,13 +142,17 @@ function activate(context) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('eyes.start', () => {
-      // Reveal/focus the Eyes view in the panel.
+      // Reveal/focus the Eyes view.
       vscode.commands.executeCommand('eyes.view.focus');
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('eyes.surprise', () => provider.surprise())
+    vscode.commands.registerCommand('eyes.surprise', async () => {
+      // Make sure the view exists first; surprise() queues if it isn't ready.
+      await vscode.commands.executeCommand('eyes.view.focus');
+      provider.surprise();
+    })
   );
 
   // Follow the editor caret so the eyes react to activity outside their view.

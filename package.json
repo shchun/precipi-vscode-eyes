@@ -2,7 +2,7 @@
   "name": "eyes",
   "displayName": "Eyes",
   "description": "A pair of googly eyes that follow your cursor in VS Code. Inspired by vscode-pets.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "precipi",
   "license": "MIT",
   "icon": "media/icon.png",

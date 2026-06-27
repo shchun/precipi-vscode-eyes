@@ -32,6 +32,10 @@
     .eyes-sweat { opacity: 0; }
     .is-surprised .eyes-mark  { opacity: 1; animation: popMark 0.35s ease both; }
     .is-surprised .eyes-sweat { animation: sweatDrop 0.85s ease-out 0.05s both; }
+    @media (prefers-reduced-motion: reduce) {
+      .is-surprised .eyes-mark  { animation: none; }
+      .is-surprised .eyes-sweat { animation: none; opacity: 1; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -137,9 +141,10 @@
   const gaze = { x: 0.6, y: 0 };     // where to look when following the editor caret
   const p = { L: { x: 0, y: 0, vx: 0, vy: 0 }, R: { x: 0, y: 0, vx: 0, vy: 0 } };
   let scaleNow = 1;                  // current stage scale (from fit)
-  let blinkT = null, surpT = null;
+  let blinkT = null, blinkInner = null, surpT = null;
   let running = false;
 
+  const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const vscodeApi = (typeof acquireVsCodeApi !== 'undefined') ? acquireVsCodeApi() : null;
 
   // ---- sizing (changes only when surprised toggles) ----
@@ -210,6 +215,11 @@
   function surprise() {
     clearTimeout(surpT);
     p.L.vy -= 0.32; p.R.vy -= 0.32;
+    // If already surprised, restart the pop/sweat animations on the re-click.
+    if (st.surprised) {
+      container.classList.remove('is-surprised');
+      void container.offsetWidth; // force reflow so the CSS animation replays
+    }
     setSurprised(true);
     surpT = setTimeout(function () { setSurprised(false); st.shake = 0; wake(); }, 700);
   }
@@ -224,21 +234,33 @@
   }
 
   function scheduleBlink() {
+    if (reduceMotion) return;          // honor prefers-reduced-motion: no idle blinks
     const next = 1500 + Math.random() * 2800;
     blinkT = setTimeout(function () {
       if (!st.surprised) {
         if (Math.random() < 0.13) {
           const eye = Math.random() < 0.5 ? 'lidL' : 'lidR';
           st[eye] = 1; wake();
-          setTimeout(function () { st[eye] = 0; wake(); }, 320);
+          blinkInner = setTimeout(function () { st[eye] = 0; wake(); }, 320);
         } else {
           st.lidL = 1; st.lidR = 1; wake();
-          setTimeout(function () { st.lidL = 0; st.lidR = 0; wake(); }, 150);
+          blinkInner = setTimeout(function () { st.lidL = 0; st.lidR = 0; wake(); }, 150);
         }
       }
       scheduleBlink();
     }, next);
   }
+
+  // Pause idle work while the view is hidden; resume cleanly when shown again.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      clearTimeout(blinkT); clearTimeout(blinkInner); blinkT = null;
+    } else {
+      st.lidL = 0; st.lidR = 0;       // make sure we don't resume mid-blink
+      if (!blinkT) scheduleBlink();
+      measure(); wake();
+    }
+  });
 
   // ---- animation ----
   function target(E) {
@@ -259,14 +281,14 @@
     const tr = useMouse ? target(R) : gaze;
     let moving = false;
     [[p.L, tl], [p.R, tr]].forEach(function (pair) {
-      const s = pair[0], t = pair[1];
+      const [s, t] = pair;
       s.vx = (s.vx + (t.x - s.x) * stiff) * damp;
       s.vy = (s.vy + (t.y - s.y) * stiff) * damp;
       s.x += s.vx; s.y += s.vy;
       if (Math.abs(s.vx) > 1e-4 || Math.abs(s.vy) > 1e-4 ||
           Math.abs(t.x - s.x) > 1e-4 || Math.abs(t.y - s.y) > 1e-4) moving = true;
     });
-    if (st.surprised) st.shake = (Math.random() - 0.5) * 14;
+    if (st.surprised) st.shake = reduceMotion ? 0 : (Math.random() - 0.5) * 14;
     render();
     if (moving || st.surprised) requestAnimationFrame(tick);
     else running = false;
