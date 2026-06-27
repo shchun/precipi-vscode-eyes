@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="sclera" cx="50%" cy="78%" r="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#f3f1ee"/>
+      <stop offset="100%" stop-color="#e7e2db"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="42%" cy="34%" r="70%">
+      <stop offset="0%" stop-color="#4a3120"/>
+      <stop offset="40%" stop-color="#311e12"/>
+      <stop offset="70%" stop-color="#1c110a"/>
+      <stop offset="100%" stop-color="#0a0603"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="256" height="256" rx="56" fill="#efe9df"/>
+
+  <!-- left eye -->
+  <g>
+    <ellipse cx="92" cy="128" rx="52" ry="78" fill="url(#sclera)" stroke="#14110f" stroke-width="11"/>
+    <circle cx="92" cy="112" r="40" fill="url(#iris)"/>
+    <circle cx="92" cy="112" r="18" fill="#0a0603"/>
+    <circle cx="80" cy="100" r="9" fill="#ffffff"/>
+  </g>
+
+  <!-- right eye -->
+  <g>
+    <ellipse cx="178" cy="128" rx="52" ry="78" fill="url(#sclera)" stroke="#14110f" stroke-width="11"/>
+    <circle cx="178" cy="112" r="40" fill="url(#iris)"/>
+    <circle cx="178" cy="112" r="18" fill="#0a0603"/>
+    <circle cx="166" cy="100" r="9" fill="#ffffff"/>
+  </g>
+</svg>

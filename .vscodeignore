@@ -1,0 +1,9 @@
+.vscode/**
+.git/**
+.gitignore
+scripts/**
+media/icon.svg
+Eyes Tall.html
+**/*.map
+**/*.vsix
+**/.DS_Store

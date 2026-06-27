@@ -1,0 +1,70 @@
+{
+  "name": "eyes",
+  "displayName": "Eyes",
+  "description": "A pair of googly eyes that follow your cursor in VS Code. Inspired by vscode-pets.",
+  "version": "0.0.1",
+  "publisher": "precipi",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shchun/precipi-vscode-eyes"
+  },
+  "galleryBanner": {
+    "color": "#efe9df",
+    "theme": "light"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "pets",
+    "eyes",
+    "fun",
+    "cursor",
+    "companion"
+  ],
+  "main": "./extension.js",
+  "scripts": {
+    "package": "node scripts/deploy.mjs --package",
+    "deploy": "node scripts/deploy.mjs"
+  },
+  "activationEvents": [
+    "onView:eyes.view"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "eyes",
+          "title": "Eyes",
+          "icon": "media/eyes-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "eyes": [
+        {
+          "id": "eyes.view",
+          "name": "Eyes",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "eyes.start",
+        "title": "Show Eyes",
+        "category": "Eyes"
+      },
+      {
+        "command": "eyes.surprise",
+        "title": "Surprise!",
+        "category": "Eyes"
+      }
+    ]
+  }
+}
