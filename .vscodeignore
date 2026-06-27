@@ -1,6 +1,9 @@
 .vscode/**
 .git/**
 .gitignore
+.env
+.env.*
+**/*.env
 scripts/**
 media/icon.svg
 media/demo.gif
