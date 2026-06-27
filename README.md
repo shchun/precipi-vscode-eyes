@@ -1,5 +1,8 @@
 # Eyes
 
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/precipi.eyes?label=VS%20Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=precipi.eyes)
+[![Open VSX](https://img.shields.io/open-vsx/v/precipi/eyes?label=Open%20VSX&color=a60ee5)](https://open-vsx.org/extension/precipi/eyes)
+
 A pair of googly eyes that live in VS Code and watch what you're doing —
 blinking on their own and acting surprised when you click them. Inspired by
 [tonybaloney/vscode-pets](https://github.com/tonybaloney/vscode-pets).
@@ -17,6 +20,15 @@ blinking on their own and acting surprised when you click them. Inspired by
 - 😌 Random natural blinks (sometimes a single-eye wink).
 - 😲 Click the eyes (or run **Eyes: Surprise!**) for a surprised reaction
   with a shake, an `!?` mark and a sweat drop.
+
+## Install
+
+- **VS Code / Cursor**: Extensions → search **"Eyes"** (publisher `precipi`), or
+  [install from the Marketplace](https://marketplace.visualstudio.com/items?itemName=precipi.eyes).
+- **VSCodium / Gitpod / other Open VSX editors**:
+  [install from Open VSX](https://open-vsx.org/extension/precipi/eyes).
+- **From a `.vsix`**: `code --install-extension eyes-<version>.vsix`, or
+  Extensions → `…` → **Install from VSIX…**.
 
 ## Usage
 
@@ -37,12 +49,35 @@ This is a zero-build extension (plain JavaScript — no compile step):
 2. Press **F5** (`Run Eyes Extension`) to launch an Extension Development Host.
 3. In the new window, open the **Eyes** view from the Activity Bar.
 
-## Package / Deploy
+## Package / Deploy (local)
 
 ```sh
 npm run package   # build the .vsix
 npm run deploy    # build + (re)install into your local VS Code
 ```
+
+## Release / Publish
+
+The extension is published to both the **VS Marketplace** and **Open VSX**.
+Tokens live in a git-ignored `.env` (`VSCE_PAT`, `OVSX_PAT`) and are loaded into
+the shell before publishing — they are excluded from the package and the repo.
+
+```sh
+# 1) bump "version" in package.json (a version can only be published once)
+# 2) load tokens from .env (never commit them)
+set -a; . ./.env; set +a
+
+# 3) VS Marketplace
+npx @vscode/vsce publish
+
+# 4) Open VSX (build a .vsix, then upload it)
+npx @vscode/vsce package
+npx ovsx publish eyes-<version>.vsix -p "$OVSX_PAT"
+```
+
+One-time setup (already done): a `precipi` publisher on the Marketplace, a
+`precipi` namespace on Open VSX (`npx ovsx create-namespace precipi`), and a
+signed Eclipse Open VSX Publisher Agreement.
 
 ## Project layout
 
