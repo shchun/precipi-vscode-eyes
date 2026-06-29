@@ -54,6 +54,16 @@
         }
       ]
     },
+    "configuration": {
+      "title": "Eyes",
+      "properties": {
+        "eyes.reactToErrors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Make the eyes look anxious when the active file has errors or a terminal command fails."
+        }
+      }
+    },
     "commands": [
       {
         "command": "eyes.start",

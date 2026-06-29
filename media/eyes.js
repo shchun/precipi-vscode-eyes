@@ -28,11 +28,21 @@
       30%  { opacity: 1; }
       100% { transform: translate(0, 40px) scale(1);   opacity: 0; }
     }
+    @keyframes anxSweat {
+      0%   { transform: translate(0, -4px) scale(0.5); opacity: 0; }
+      18%  { opacity: 1; }
+      72%  { transform: translate(0, 30px) scale(1);   opacity: 1; }
+      100% { transform: translate(0, 46px) scale(1);   opacity: 0; }
+    }
     .eyes-mark  { opacity: 0; }
     .eyes-sweat { opacity: 0; }
+    /* Anxious is the calmer, sticky state; surprise rules come after so a click
+       still overrides it. */
+    .is-anxious .eyes-sweat   { animation: anxSweat 2.4s ease-in 0.2s infinite; }
     .is-surprised .eyes-mark  { opacity: 1; animation: popMark 0.35s ease both; }
     .is-surprised .eyes-sweat { animation: sweatDrop 0.85s ease-out 0.05s both; }
     @media (prefers-reduced-motion: reduce) {
+      .is-anxious .eyes-sweat   { animation: none; opacity: 1; }
       .is-surprised .eyes-mark  { animation: none; }
       .is-surprised .eyes-sweat { animation: none; opacity: 1; }
     }
@@ -135,7 +145,7 @@
   const R = buildEye();
 
   // ---- state ----
-  const st = { surprised: false, lidL: 0, lidR: 0, shake: 0 };
+  const st = { surprised: false, anxious: false, tired: false, lidL: 0, lidR: 0, shake: 0 };
   let mx = -9999, my = -9999;
   let useMouse = false;              // true while the cursor is over the eyes view
   const gaze = { x: 0.6, y: 0 };     // where to look when following the editor caret
@@ -189,9 +199,9 @@
   // ---- input ----
   window.addEventListener('mousemove', function (e) {
     mx = e.clientX; my = e.clientY;
-    if (useMouse) wake();
+    if (useMouse) { pingActive(); wake(); }
   });
-  container.addEventListener('mouseenter', function () { useMouse = true; measure(); wake(); });
+  container.addEventListener('mouseenter', function () { useMouse = true; pingActive(); measure(); wake(); });
   container.addEventListener('mouseleave', function () { useMouse = false; wake(); });
   container.addEventListener('mousedown', surprise);
   window.addEventListener('resize', fit);
@@ -202,6 +212,8 @@
     const d = e && e.data;
     if (!d) return;
     if (d.type === 'surprise') surprise();
+    else if (d.type === 'anxious') setAnxious(!!d.on);
+    else if (d.type === 'tired') setTired(!!d.on);
     else if (d.type === 'look') {
       if (Number.isFinite(d.x)) gaze.x = d.x;
       if (Number.isFinite(d.y)) gaze.y = d.y;
@@ -213,6 +225,7 @@
   if (vscodeApi) vscodeApi.postMessage({ type: 'ready' });
 
   function surprise() {
+    pingActive();                      // a click is activity → wake from tired
     clearTimeout(surpT);
     p.L.vy -= 0.32; p.R.vy -= 0.32;
     // If already surprised, restart the pop/sweat animations on the re-click.
@@ -222,6 +235,32 @@
     }
     setSurprised(true);
     surpT = setTimeout(function () { setSurprised(false); st.shake = 0; wake(); }, 700);
+  }
+
+  function setAnxious(v) {
+    if (st.anxious === v) return;
+    st.anxious = v;
+    container.classList.toggle('is-anxious', v);
+    wake();                            // keep the loop alive for the tremble
+  }
+
+  function setTired(v) {
+    if (st.tired === v) return;
+    st.tired = v;
+    wake();                            // run the loop for the sleepy sway / lids
+  }
+
+  // Local interaction (mouse over the eyes) the extension can't see. Wake up
+  // immediately and let the host reset its idle clock — throttled so a moving
+  // cursor doesn't spam messages.
+  let lastActiveSent = 0;
+  function pingActive() {
+    if (st.tired) setTired(false);
+    const now = Date.now();
+    if (vscodeApi && now - lastActiveSent > 2000) {
+      lastActiveSent = now;
+      vscodeApi.postMessage({ type: 'active' });
+    }
   }
 
   function setSurprised(v) {
@@ -258,6 +297,7 @@
     } else {
       st.lidL = 0; st.lidR = 0;       // make sure we don't resume mid-blink
       if (!blinkT) scheduleBlink();
+      pingActive();                   // looking at the eyes again counts as active
       measure(); wake();
     }
   });
@@ -290,7 +330,7 @@
     });
     if (st.surprised) st.shake = reduceMotion ? 0 : (Math.random() - 0.5) * 14;
     render();
-    if (moving || st.surprised) requestAnimationFrame(tick);
+    if (moving || st.surprised || ((st.anxious || st.tired) && !reduceMotion)) requestAnimationFrame(tick);
     else running = false;
   }
 
@@ -305,11 +345,27 @@
       ? ('translate(' + st.shake + 'px, -16px)')
       : 'translate(0, 0)';
 
-    L.iris.style.transform = 'translate(' + (p.L.x * maxX) + 'px, ' + (p.L.y * maxY) + 'px)';
-    R.iris.style.transform = 'translate(' + (p.R.x * maxX) + 'px, ' + (p.R.y * maxY) + 'px)';
+    // Anxious: a fast, jittery shiver on the pupils (nervous darting). Bigger
+    // amplitude here reads more clearly as "panicking" than a subtle quiver.
+    const anx = st.anxious && !surprised && !reduceMotion;
+    const tx = anx ? (Math.random() - 0.5) * 11 : 0;
+    const ty = anx ? (Math.random() - 0.5) * 8 : 0;
+    // Tired (idle): eyes sink and drift downward with a slow, sleepy sway.
+    const tired = st.tired && !surprised && !st.anxious;
+    const tiredDown = tired
+      ? (maxY * 0.34 + (reduceMotion ? 0 : Math.sin(Date.now() / 620) * 3))
+      : 0;
+    L.iris.style.transform = 'translate(' + (p.L.x * maxX + tx) + 'px, ' + (p.L.y * maxY + ty + tiredDown) + 'px)';
+    R.iris.style.transform = 'translate(' + (p.R.x * maxX + tx) + 'px, ' + (p.R.y * maxY + ty + tiredDown) + 'px)';
 
     const lidH = eyeH + 70, openEdge = eyeH * 0.16, closeEdge = eyeH * 0.98;
-    const amtL = surprised ? 0 : st.lidL, amtR = surprised ? 0 : st.lidR;
+    // While anxious, hold the lids a little lowered for a worried squint; when
+    // tired, drop them much further for a heavy, half-asleep look.
+    const anxLid = (st.anxious && !surprised) ? 0.2 : 0;
+    const tiredLid = tired ? 0.58 : 0;
+    const baseLid = Math.max(anxLid, tiredLid);
+    const amtL = surprised ? 0 : Math.max(st.lidL, baseLid);
+    const amtR = surprised ? 0 : Math.max(st.lidR, baseLid);
     L.lid.style.transform = 'translateY(' + ((openEdge + (closeEdge - openEdge) * amtL) - lidH) + 'px)';
     R.lid.style.transform = 'translateY(' + ((openEdge + (closeEdge - openEdge) * amtR) - lidH) + 'px)';
   }

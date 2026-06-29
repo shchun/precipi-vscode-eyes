@@ -13,6 +13,11 @@ class EyesViewProvider {
     this._view = undefined;
     this._gazeTimer = undefined;
     this._pendingSurprise = false;
+    this._anxious = false;
+    this._tired = false;
+    // Called when the webview reports local interaction (mouse over the eyes)
+    // that the extension can't otherwise observe.
+    this.onUserActivity = null;
   }
 
   resolveWebviewView(webviewView) {
@@ -25,8 +30,19 @@ class EyesViewProvider {
     webviewView.webview.html = this._html(webviewView.webview);
 
     webviewView.webview.onDidReceiveMessage((msg) => {
+      if (msg && msg.type === 'active') {
+        this.onUserActivity?.();
+        return;
+      }
       if (msg && msg.type === 'ready') {
         this.updateGaze();
+        // The webview is freshly built, so replay any sticky state it missed.
+        if (this._anxious) {
+          this._view.webview.postMessage({ type: 'anxious', on: true });
+        }
+        if (this._tired) {
+          this._view.webview.postMessage({ type: 'tired', on: true });
+        }
         if (this._pendingSurprise) {
           this._pendingSurprise = false;
           this._view.webview.postMessage({ type: 'surprise' });
@@ -54,6 +70,23 @@ class EyesViewProvider {
       // remember it and fire once the webview reports it's ready.
       this._pendingSurprise = true;
     }
+  }
+
+  /** Toggle the sticky "anxious" reaction (used while the file has errors). */
+  setAnxious(on) {
+    on = !!on;
+    if (on === this._anxious) return;
+    this._anxious = on;
+    // If the view isn't resolved yet the state is replayed on 'ready'.
+    this._view?.webview.postMessage({ type: 'anxious', on });
+  }
+
+  /** Toggle the sleepy "tired" reaction (used after a stretch of inactivity). */
+  setTired(on) {
+    on = !!on;
+    if (on === this._tired) return;
+    this._tired = on;
+    this._view?.webview.postMessage({ type: 'tired', on });
   }
 
   /** Coalesce frequent caret events into at most one gaze update per ~60ms. */
@@ -155,14 +188,73 @@ function activate(context) {
     })
   );
 
+  // Idle tracking: after a stretch with no activity the eyes get sleepy. Any
+  // editor work, terminal run, or interaction with the eyes resets the clock.
+  const IDLE_MS = 5 * 60 * 1000;
+  // const IDLE_MS = 30 * 1000;
+  let lastActivity = Date.now();
+  const markActivity = () => {
+    lastActivity = Date.now();
+    provider.setTired(false);          // dedupes internally when already awake
+  };
+  const idleTimer = setInterval(() => {
+    if (Date.now() - lastActivity >= IDLE_MS) provider.setTired(true);
+  }, 30 * 1000);
+  context.subscriptions.push({ dispose: () => clearInterval(idleTimer) });
+  provider.onUserActivity = markActivity;
+
   // Follow the editor caret so the eyes react to activity outside their view.
   // Debounced + visibility-guarded so fast typing doesn't flood the webview.
-  const refresh = () => provider.scheduleGaze();
+  const refresh = () => { provider.scheduleGaze(); markActivity(); };
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection(refresh),
     vscode.window.onDidChangeActiveTextEditor(refresh),
     vscode.window.onDidChangeTextEditorVisibleRanges(refresh)
   );
+
+  // The eyes look anxious whenever something is wrong. Two independent sources
+  // feed that state, combined here so neither one clobbers the other:
+  //   - diagError: the active file has error diagnostics (sticky while present).
+  //   - pulse:     a terminal command just failed (a brief reaction that fades).
+  let diagError = false;
+  let pulse = false;
+  let pulseTimer;
+  const reactsToErrors = () =>
+    vscode.workspace.getConfiguration('eyes').get('reactToErrors', true);
+  const apply = () => provider.setAnxious(diagError || pulse);
+
+  // Source 1 — static diagnostics on the file you're typing in.
+  const reactToDiagnostics = () => {
+    const ed = vscode.window.activeTextEditor;
+    diagError = !!(reactsToErrors() && ed && vscode.languages
+      .getDiagnostics(ed.document.uri)
+      .some((d) => d.severity === vscode.DiagnosticSeverity.Error));
+    apply();
+  };
+  context.subscriptions.push(
+    vscode.languages.onDidChangeDiagnostics(reactToDiagnostics),
+    vscode.window.onDidChangeActiveTextEditor(reactToDiagnostics),
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('eyes.reactToErrors')) reactToDiagnostics();
+    })
+  );
+  reactToDiagnostics();
+
+  // Source 2 — a terminal command that exits non-zero (e.g. a crashing script,
+  // a failed build). Needs shell integration, so guard the API for old VS Code.
+  if (typeof vscode.window.onDidEndTerminalShellExecution === 'function') {
+    context.subscriptions.push(
+      vscode.window.onDidEndTerminalShellExecution((e) => {
+        markActivity();                // running a command counts as being active
+        if (!reactsToErrors()) return;
+        if (typeof e.exitCode !== 'number' || e.exitCode === 0) return;
+        pulse = true;
+        apply();
+        clearTimeout(pulseTimer);
+        pulseTimer = setTimeout(() => { pulse = false; apply(); }, 4500);
+      })
+    );
+  }
 }
 
 function deactivate() {}
