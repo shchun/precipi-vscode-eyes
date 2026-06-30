@@ -1,6 +1,6 @@
 # Eyes
 
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/precipi.eyes?label=VS%20Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=precipi.eyes)
+[![VS Marketplace](https://badgen.net/vs-marketplace/v/precipi.eyes?label=VS%20Marketplace&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=precipi.eyes)
 [![Open VSX](https://img.shields.io/open-vsx/v/precipi/eyes?label=Open%20VSX&color=a60ee5)](https://open-vsx.org/extension/precipi/eyes)
 
 A pair of googly eyes that live in VS Code and watch what you're doing —
