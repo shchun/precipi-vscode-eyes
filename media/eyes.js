@@ -15,9 +15,22 @@
 
   const root = document.getElementById('eyes-root') || document.body;
 
+  // Outer background follows the panel's theme color (the view lives in the
+  // Explorer/side bar) so the eyes blend into wherever they're docked. The
+  // eyelids reuse it so a blink "closes" into the background. The cream value
+  // is only a fallback for hosts that don't inject the theme variables.
+  const BG = 'var(--vscode-sideBar-background, var(--vscode-editor-background, #efe9df))';
+
   // ---- injected keyframes + state-driven classes ----
   const style = document.createElement('style');
   style.textContent = `
+    /* Eye rim color adapts to the theme: the bold near-black rim reads great on
+       light backgrounds but vanishes on dark ones, so dark/high-contrast themes
+       get a lighter warm gray. VS Code toggles these body classes on the fly, so
+       the rim recolors automatically when the theme changes. */
+    body { --eye-rim: #14110f; }
+    body.vscode-dark { --eye-rim: #7d776f; }
+    body.vscode-high-contrast { --eye-rim: #d4cfc4; }
     @keyframes popMark {
       0%   { transform: translateX(-50%) translateY(10px) scale(0.3) rotate(-12deg); opacity: 0; }
       45%  { transform: translateX(-50%) translateY(-6px) scale(1.2) rotate(6deg);  opacity: 1; }
@@ -59,7 +72,7 @@
 
   // ---- build the static element tree (styles set once) ----
   const container = css(el('div', root), {
-    position: 'fixed', inset: '0', background: '#efe9df',
+    position: 'fixed', inset: '0', background: BG,
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     cursor: 'crosshair', userSelect: 'none', overflow: 'hidden',
     fontFamily: 'ui-sans-serif, system-ui, sans-serif',
@@ -83,7 +96,7 @@
   surpriseMark.textContent = '!?';
 
   css(el('div', group, 'eyes-sweat'), {
-    position: 'absolute', top: '-2px', right: '-34px', width: '34px', height: '46px', boxSizing: 'border-box',
+    position: 'absolute', top: '-2px', right: '-46px', width: '34px', height: '46px', boxSizing: 'border-box',
     background: 'radial-gradient(circle at 38% 30%, #8fcdec 0%, #2f8fd0 52%, #135f9e 100%)',
     borderRadius: '60% 60% 60% 60% / 80% 80% 40% 40%',
     border: '3.5px solid #14110f',
@@ -96,7 +109,7 @@
     const eye = css(el('div', wrap), {
       position: 'relative', overflow: 'hidden', borderRadius: '50%',
       background: 'radial-gradient(120% 100% at 50% 78%, #ffffff 0%, #f3f1ee 70%, #e7e2db 100%)',
-      border: '8px solid #14110f',
+      border: '8px solid var(--eye-rim)',
       boxShadow: '0 14px 34px rgba(0,0,0,0.16), inset 0 10px 16px rgba(20,17,15,0.12)',
       transition: 'width 0.18s cubic-bezier(.2,1.5,.4,1), height 0.18s cubic-bezier(.2,1.5,.4,1)',
     });
@@ -132,9 +145,13 @@
     });
     const lid = css(el('div', eye), {
       position: 'absolute', left: '-14%', right: '-14%', top: '0',
-      background: 'linear-gradient(#efe9df 0%, #efe9df 82%, #e4ddd1 100%)',
+      // The lid is the eyelid sliding over the (always light) eyeball, so it
+      // stays a fixed warm cream regardless of theme. Tying it to the panel
+      // background made it dark in dark themes, which read as a hood biting into
+      // the top of the eyeball. The darker bottom stop gives the crease depth.
+      background: 'linear-gradient(#e3dccd 0%, #e3dccd 82%, #d6cdbb 100%)',
       borderRadius: '0 0 46% 46% / 0 0 22% 22%',
-      borderBottom: '4px solid #14110f',
+      borderBottom: '4px solid var(--eye-rim)',
       boxShadow: '0 5px 9px rgba(20,17,15,0.22)',
       transition: 'transform 0.13s cubic-bezier(.45,.05,.55,.95)',
       zIndex: '3',

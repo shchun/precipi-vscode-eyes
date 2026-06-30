@@ -1,4 +1,9 @@
 .vscode/**
+.vscode-test/**
+.vscode-test.mjs
+test/**
+node_modules/**
+package-lock.json
 .git/**
 .gitignore
 .env

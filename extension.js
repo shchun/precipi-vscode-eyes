@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 /**
  * Eyes — a tiny VS Code companion (inspired by tonybaloney/vscode-pets).
- * A pair of googly eyes live in a webview view (Activity Bar by default); they
+ * A pair of googly eyes live in a webview view (in the Explorer by default); they
  * spring toward the cursor, blink, and act surprised when clicked.
  */
 
@@ -111,16 +111,15 @@ class EyesViewProvider {
     if (ed && ed.visibleRanges.length) {
       const pos = ed.selection.active;
       // Span the full visible region (across folds), not just the first range.
-      const firstLine = ed.visibleRanges[0].start.line;
-      const lastLine = ed.visibleRanges[ed.visibleRanges.length - 1].end.line;
-      const span = Math.max(1, lastLine - firstLine);
-      const vfrac = clamp((pos.line - firstLine) / span, 0, 1);
-      // Column relative to the caret's own line length (floored so short lines
-      // don't saturate instantly).
-      const lineLen = ed.document.lineAt(pos.line).text.length;
-      const xfrac = clamp(pos.character / Math.max(24, lineLen), 0, 1);
-      x = clamp(0.15 + xfrac * 0.75, -1, 1);
-      y = clamp((vfrac - 0.5) * 1.8, -1, 1);
+      const g = computeGaze({
+        line: pos.line,
+        firstLine: ed.visibleRanges[0].start.line,
+        lastLine: ed.visibleRanges[ed.visibleRanges.length - 1].end.line,
+        character: pos.character,
+        lineLen: ed.document.lineAt(pos.line).text.length,
+      });
+      x = g.x;
+      y = g.y;
     }
     this._view.webview.postMessage({ type: 'look', x: x, y: y });
   }
@@ -144,7 +143,7 @@ class EyesViewProvider {
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #efe9df; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--vscode-sideBar-background, var(--vscode-editor-background, #efe9df)); }
   </style>
   <title>Eyes</title>
 </head>
@@ -162,6 +161,22 @@ function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
 
+/**
+ * Pure caret→gaze mapping, extracted so it can be unit-tested without VS Code.
+ * Vertical comes from where the caret sits within the visible lines, horizontal
+ * from how far along its line it is; both clamped to [-1, 1]. The column floor
+ * (24) keeps short lines from saturating the horizontal range instantly.
+ */
+function computeGaze({ line, firstLine, lastLine, character, lineLen }) {
+  const span = Math.max(1, lastLine - firstLine);
+  const vfrac = clamp((line - firstLine) / span, 0, 1);
+  const xfrac = clamp(character / Math.max(24, lineLen), 0, 1);
+  return {
+    x: clamp(0.15 + xfrac * 0.75, -1, 1),
+    y: clamp((vfrac - 0.5) * 1.8, -1, 1),
+  };
+}
+
 function getNonce() {
   return crypto.randomBytes(16).toString('hex');
 }
@@ -170,7 +185,11 @@ function activate(context) {
   const provider = new EyesViewProvider(context.extensionUri);
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(EyesViewProvider.viewType, provider)
+    vscode.window.registerWebviewViewProvider(EyesViewProvider.viewType, provider, {
+      // Keep the webview alive while hidden so toggling/collapsing the view
+      // brings the eyes back instantly instead of rebuilding the iframe.
+      webviewOptions: { retainContextWhenHidden: true },
+    })
   );
 
   context.subscriptions.push(
@@ -259,4 +278,4 @@ function activate(context) {
 
 function deactivate() {}
 
-module.exports = { activate, deactivate };
+module.exports = { activate, deactivate, clamp, computeGaze };

@@ -2,7 +2,7 @@
   "name": "eyes",
   "displayName": "Eyes",
   "description": "A pair of googly eyes that follow your cursor in VS Code. Inspired by vscode-pets.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "precipi",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -30,27 +30,27 @@
   "main": "./extension.js",
   "scripts": {
     "package": "node scripts/deploy.mjs --package",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "mocha": "^10.7.3"
   },
   "activationEvents": [
-    "onView:eyes.view"
+    "onView:eyes.view",
+    "onStartupFinished"
   ],
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "eyes",
-          "title": "Eyes",
-          "icon": "media/eyes-icon.svg"
-        }
-      ]
-    },
     "views": {
-      "eyes": [
+      "explorer": [
         {
           "id": "eyes.view",
           "name": "Eyes",
-          "type": "webview"
+          "type": "webview",
+          "icon": "media/eyes-icon.svg",
+          "visibility": "visible"
         }
       ]
     },

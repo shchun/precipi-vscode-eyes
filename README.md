@@ -20,6 +20,8 @@ blinking on their own and acting surprised when you click them. Inspired by
 - 😌 Random natural blinks (sometimes a single-eye wink).
 - 😲 Click the eyes (or run **Eyes: Surprise!**) for a surprised reaction
   with a shake, an `!?` mark and a sweat drop.
+- 🎨 Blends into your color theme — the background, eyelids and outline adapt to
+  light and dark themes automatically.
 
 ## Install
 
@@ -32,9 +34,10 @@ blinking on their own and acting surprised when you click them. Inspired by
 
 ## Usage
 
-The eyes appear in the **Activity Bar** (the icon strip on the left) under the
-**Eyes** icon. Click it to open the view. You can drag the view to the Panel or
-the secondary sidebar if you prefer — it auto-scales to fit.
+The eyes live in the **Explorer** sidebar by default, so they're visible as soon
+as the extension loads — no extra icon to click. Drag the **Eyes** view wherever
+you like (up to the top of the Explorer, another sidebar, or the Panel) and it
+auto-scales to fit.
 
 Commands (Command Palette → `Ctrl/Cmd+Shift+P`):
 
@@ -47,7 +50,14 @@ This is a zero-build extension (plain JavaScript — no compile step):
 
 1. Open this folder in VS Code.
 2. Press **F5** (`Run Eyes Extension`) to launch an Extension Development Host.
-3. In the new window, open the **Eyes** view from the Activity Bar.
+3. In the new window, the **Eyes** view shows up in the Explorer sidebar.
+
+Run the integration tests (downloads a throwaway VS Code on first run):
+
+```sh
+npm install
+npm test
+```
 
 ## Package / Deploy (local)
 
@@ -85,6 +95,7 @@ signed Eclipse Open VSX Publisher Agreement.
 | --------------------- | -------------------------------------------------------- |
 | `extension.js`        | Extension entry: registers the webview view + caret gaze. |
 | `media/eyes.js`       | The eyes animation (vanilla DOM + requestAnimationFrame). |
-| `media/eyes-icon.svg` | Activity Bar view icon.                                  |
+| `media/eyes-icon.svg` | Eyes view icon (shown in the Explorer).                  |
 | `media/icon.png`      | Marketplace gallery icon.                               |
+| `test/`               | `@vscode/test-cli` integration + pure-logic tests.       |
 | `Eyes Tall.html`      | The original standalone prototype (not shipped).        |
